@@ -11,6 +11,10 @@
 mvn quarkus:dev
 ```
 
+## Documentação
+
+Para visualizar a documentação, acesse `http://localhost:8080/q/swagger-ui/`
+
 ## Roteiro
 
 - [ ] Criar usuário 1
