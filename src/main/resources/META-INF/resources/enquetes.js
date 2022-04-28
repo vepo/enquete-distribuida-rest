@@ -7,7 +7,21 @@ window.addEventListener("beforeunload", function (event) {
 moment.locale('pt-br');
 
 angular.module('enqueteApp', ['ngMaterial', 'ngMessages', 'ng-fusioncharts'])
-    .config(function ($mdDateLocaleProvider) {
+    .factory('BasicAuthInterceptor', function ($rootScope, $q) {
+        return {
+            request: function(config) {
+                config.headers = config.headers || {};
+                if ($rootScope.usuarioLogado) {
+                    config.headers.Authorization = 'Basic ' + btoa($rootScope.usuarioLogado.nome + ":12345");
+                }
+                return config || $q.when(config);
+            },
+            response: function(response) {
+                return response || $q.when(response);
+            }
+        };
+    })
+    .config(function ($mdDateLocaleProvider, $httpProvider) {
         $mdDateLocaleProvider.shortMonths = ['Jan', 'Fev', 'Mar', 'Abril', 'Maio', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
         $mdDateLocaleProvider.Months = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
         $mdDateLocaleProvider.days = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sabado'];
@@ -22,6 +36,7 @@ angular.module('enqueteApp', ['ngMaterial', 'ngMessages', 'ng-fusioncharts'])
             var m = moment(date);
             return m.isValid() ? m.format('L') : '';
         };
+        $httpProvider.interceptors.push('BasicAuthInterceptor');
     })
     .filter('dateFormatter', function () {
         return function (date, format) {
@@ -67,7 +82,7 @@ angular.module('enqueteApp', ['ngMaterial', 'ngMessages', 'ng-fusioncharts'])
         controller.atualizar = () => {
             $http.get("/enquetes")
                 .then(response => controller.enquetes = response.data,
-                    response => $rootScope.$broadcast("Aviso", { escopo: "Enquetes", titulo: "Listar enquetes", mensagem: "Erro ao listar enquetes!" }));
+                      response => $rootScope.$broadcast("Aviso", { escopo: "Enquetes", titulo: "Listar enquetes", mensagem: "Erro ao listar enquetes!" }));
         };
         controller.votos = [];
         controller.toggleSelection = (opcao) => {
@@ -82,6 +97,9 @@ angular.module('enqueteApp', ['ngMaterial', 'ngMessages', 'ng-fusioncharts'])
         controller.votar = (enquete) => {
             controller.enqueteEmVotacao = enquete;
             controller.votos = []
+        };
+        controller.votei = (enquete) => {
+            return $rootScope.meusVotos.find(v => v.idEnquete == enquete.id);
         };
         controller.cancelarVotacao = () => {
             controller.enqueteEmVotacao = null;
@@ -136,6 +154,7 @@ angular.module('enqueteApp', ['ngMaterial', 'ngMessages', 'ng-fusioncharts'])
             controller.tab = 'cadastrar';
             controller.usuario = null;
             $rootScope.usuarioLogado = null;
+            $rootScope.meusVotos = null;
             controller.usuariosDisponiveis = [];
             $http.get("/usuario")
                 .then(response => controller.usuariosDisponiveis = response.data,
@@ -149,6 +168,7 @@ angular.module('enqueteApp', ['ngMaterial', 'ngMessages', 'ng-fusioncharts'])
                     controller.usuario = response.data;
                     evtSource = new EventSource(`/enquetes/stream/${controller.usuario.id}`);
                     $rootScope.usuarioLogado = controller.usuario;
+                    controller.lerVotos();
                     controller.usuariosDisponiveis.push(controller.usuario)
                 },
                     response => $rootScope.$broadcast("Aviso", { escopo: "Usuários", titulo: "Criar usuários", mensagem: "Erro ao criar usuário!" }));
@@ -157,7 +177,16 @@ angular.module('enqueteApp', ['ngMaterial', 'ngMessages', 'ng-fusioncharts'])
             controller.usuario = controller.usuariosDisponiveis.find(u => u.nome == $scope.usuario.nome);
             evtSource = new EventSource(`/enquetes/stream/${controller.usuario.id}`);
             $rootScope.usuarioLogado = controller.usuario;
+            controller.lerVotos();
         };
+        controller.lerVotos = () => {
+            $rootScope.meusVotos = null
+            if ($rootScope.usuarioLogado) {
+                $http.get("/enquetes/meus/votos")
+                     .then(response => $rootScope.meusVotos = response.data,
+                           response => console.log(response))
+            }
+        }
         controller.logout = () => {
             evtSource.close();
             evtSource = null;

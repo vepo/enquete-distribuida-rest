@@ -2,9 +2,11 @@ package io.vepo.enquetes;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -12,7 +14,9 @@ import javax.annotation.PostConstruct;
 import javax.enterprise.context.ApplicationScoped;
 import javax.inject.Inject;
 import javax.ws.rs.Consumes;
+import javax.ws.rs.ForbiddenException;
 import javax.ws.rs.GET;
+import javax.ws.rs.NotFoundException;
 import javax.ws.rs.POST;
 import javax.ws.rs.PUT;
 import javax.ws.rs.Path;
@@ -28,6 +32,7 @@ import javax.ws.rs.sse.SseEventSink;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import io.quarkus.security.identity.SecurityIdentity;
 
 @Path("enquetes")
 @ApplicationScoped
@@ -37,6 +42,9 @@ public class EnqueteResource {
 
     @Inject
     Database database;
+
+    @Inject
+    SecurityIdentity identity;
 
     @GET
     @Produces(MediaType.APPLICATION_JSON)
@@ -73,7 +81,41 @@ public class EnqueteResource {
     @GET
     @Path("{idEnquete}/resultados")
     public List<Resultado> verResultados(@PathParam("idEnquete") long idEnquete) {
+        if (Objects.isNull(identity) || 
+            Objects.isNull(identity.getPrincipal()) || 
+            identity.getPrincipal().getName().isBlank()) {
+                throw new WebApplicationException("Authentication required!", Status.UNAUTHORIZED);
+        }
+        var maybeUsuario = database.usuarios()
+                                   .stream()
+                                   .filter(u -> u.nome().equals(identity.getPrincipal().getName()))
+                                   .findFirst();
+        if (maybeUsuario.isEmpty()) {
+            throw new WebApplicationException("Usuário não pode ser encontrado", Status.FORBIDDEN);
+        }
+        var maybeEnquete = database.enquetes()
+                                   .stream()
+                                   .filter(e -> e.getId() == idEnquete)
+                                   .findFirst();
+        if (maybeEnquete.isEmpty()) {
+            throw new NotFoundException("Enquete não pode ser encontrada!");
+        } else if (maybeEnquete.get().getIdCriador() != maybeUsuario.get().id() &&
+                   !database.voto(idEnquete, maybeUsuario.get().id()).isPresent()) {
+            throw new WebApplicationException("Usuário não pode ver resultado!", Status.FORBIDDEN);
+        }
+
         return database.resultados(idEnquete);
+    }
+
+    @GET
+    @Path("meus/votos")
+    public List<VotoResponse> meusVotos() {
+        return database.usuarios()
+                       .stream()
+                       .filter(u -> u.nome().equals(identity.getPrincipal().getName()))
+                       .map(u -> database.votos(u.id()))
+                       .findFirst()
+                       .orElseGet(() -> Collections.emptyList());
     }
 
     @GET

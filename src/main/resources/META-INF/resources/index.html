@@ -125,7 +125,7 @@
                                 </div>
                             </div>
                             <div class="col">
-                                <button class="btn btn-primary" ng-disabled="enquete.finalizada" ng-click="ctlr.votar(enquete)">Votar</button>
+                                <button class="btn btn-primary" ng-disabled="enquete.finalizada || ctlr.votei(enquete)" ng-click="ctlr.votar(enquete)">Votar</button>
                                 <button class="btn btn-primary" ng-disabled="!enquete.finalizada" ng-click="ctlr.verResultado(enquete)">Resultados</button>
                             </div>
                         </div>

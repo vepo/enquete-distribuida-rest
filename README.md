@@ -10,3 +10,16 @@
 ```bash
 mvn quarkus:dev
 ```
+
+## Roteiro
+
+- [ ] Criar usuário 1
+- [ ] Criar usuário 2
+- [ ] Criar usuário 3
+- [ ] Cadastrare enquete com usuário 1
+- [ ] Cadastrare enquete vencida com usuário 2
+- [ ] Votar com usuário 1
+- [ ] Votar com usuário 2
+- [ ] Criar usuário 4
+- [ ] Votar com usuário 4
+- [ ] Ver resultado com todos usuários

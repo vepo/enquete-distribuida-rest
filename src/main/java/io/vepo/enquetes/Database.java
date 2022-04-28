@@ -8,9 +8,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Map.Entry;
 import java.util.function.Function;
-import java.util.stream.Collector;
 import java.util.stream.Collectors;
 
 import javax.annotation.PostConstruct;
@@ -97,6 +95,20 @@ public class Database {
                     .entrySet()
                     .stream()
                     .map(entry -> new Resultado(entry.getKey(), entry.getValue().intValue()))
+                    .collect(Collectors.toList());
+    }
+
+    public Optional<Usuario> encontrarPorUsernamePassword(String username, String password) {
+        return usuarios.stream()
+                       .filter(u -> u.nome().equals(username) && "12345".equals(password))
+                       .findFirst();
+    }
+
+    public List<VotoResponse> votos(long idUsuario) {
+        return votos.entrySet()
+                    .stream()
+                    .filter(entry -> entry.getValue().containsKey(idUsuario))
+                    .map(entry -> new VotoResponse(entry.getKey(), entry.getValue().get(idUsuario)))
                     .collect(Collectors.toList());
     }
 
